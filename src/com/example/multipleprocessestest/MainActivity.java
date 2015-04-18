@@ -5,7 +5,12 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
 import java.util.Properties;
 
 import android.support.v7.app.ActionBarActivity;
@@ -18,6 +23,7 @@ import android.view.MenuItem;
 
 public class MainActivity extends ActionBarActivity {
     static String TAG = "activity";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -52,8 +58,8 @@ public class MainActivity extends ActionBarActivity {
                     }
                 }
             }
-        }*/        
-        
+        }*/
+
         Intent s1Intent = new Intent(this, Service1.class);
         startService(s1Intent);
         
@@ -71,7 +77,7 @@ public class MainActivity extends ActionBarActivity {
         
         Intent s6Intent = new Intent(this, Service6.class);
         startService(s6Intent);*/
-        
+
         File dir = new File(
                 Environment.getExternalStorageDirectory(), ".statist");
         if (!dir.exists()) {
@@ -85,10 +91,11 @@ public class MainActivity extends ActionBarActivity {
                 Log.e(TAG, "file not created");
             }
         }
-        FileOutputStream os = null;
+
+
+        /*
+        FileOutputStream os;
         Properties properties = new Properties();
-        
-        
         try {
             os = new FileOutputStream(propsFile);
             FileLock lock = ((FileOutputStream) os).getChannel().lock();
@@ -96,9 +103,6 @@ public class MainActivity extends ActionBarActivity {
             try {
                 in = new FileInputStream(propsFile);
                 properties.load(in);
-            } catch (FileNotFoundException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -112,24 +116,34 @@ public class MainActivity extends ActionBarActivity {
                     }
                 }
                 in.close();
-                
+
             }
-            Log.e(TAG, "PROP = " +properties.getProperty("ser1"));
-        } catch (FileNotFoundException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
+            Log.e(TAG, "PROP = " + properties.getProperty("ser1"));
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        
-        
-        
-        
-        
+
+        */
+
+
+        Properties properties = new Properties();
+        try {
+            FileChannel channel = new RandomAccessFile(propsFile, "rw").getChannel();
+            FileLock lock = channel.lock();
+
+            InputStream in = Channels.newInputStream(channel);
+            properties.load(in);
+
+            lock.release();
+            channel.close();
+
+            Log.e(TAG, "PROP = " + properties.getProperty("ser1"));
+        } catch (Exception e) {
+            Log.e(TAG, "Error while get PROP: " + e.toString());
+        }
     }
-    
-    
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
