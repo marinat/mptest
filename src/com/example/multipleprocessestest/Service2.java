@@ -17,7 +17,7 @@ import java.nio.channels.FileLock;
 import java.util.Properties;
 
 public class Service2 extends Service {
-    static String TAG = "1Service";
+    static String TAG = "2Service";
 
     @Override
     public IBinder onBind(Intent intent) {
