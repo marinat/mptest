@@ -32,7 +32,6 @@ public class MainActivity extends ActionBarActivity {
         Intent s2Intent = new Intent(this, Service2.class);
         startService(s2Intent);
         
-        /*
         Intent s3Intent = new Intent(this, Service3.class);
         startService(s3Intent);
         
@@ -44,7 +43,6 @@ public class MainActivity extends ActionBarActivity {
         
         Intent s6Intent = new Intent(this, Service6.class);
         startService(s6Intent);
-        */
 
         File dir = new File(Environment.getExternalStorageDirectory(), ".statist");
         if (!dir.mkdir() && !dir.isDirectory()) {
@@ -75,6 +73,7 @@ public class MainActivity extends ActionBarActivity {
                     properties.setProperty("contention", String.valueOf(i));
                     Log.e(TAG, "write property contention: " + i);
                     properties.store(os, null);
+                    os.flush();
                 } catch (IOException e) {
                     Log.e(TAG, "io exception storing prefs", e);
                 } finally {

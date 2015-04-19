@@ -58,6 +58,7 @@ public class Service2 extends Service {
                     properties.setProperty("contention", String.valueOf(i));
                     Log.e(TAG, "write property contention: " + i);
                     properties.store(os, null);
+                    os.flush();
                 } catch (IOException e) {
                     Log.e(TAG, "io exception storing prefs", e);
                 } finally {
