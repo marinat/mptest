@@ -1,8 +1,14 @@
 package com.example.multipleprocessestest;
 
+import android.content.Intent;
+import android.os.Bundle;
+import android.os.Environment;
+import android.support.v7.app.ActionBarActivity;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,16 +16,7 @@ import java.io.RandomAccessFile;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
-import java.nio.channels.OverlappingFileLockException;
 import java.util.Properties;
-
-import android.support.v7.app.ActionBarActivity;
-import android.content.Intent;
-import android.os.Bundle;
-import android.os.Environment;
-import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 
 public class MainActivity extends ActionBarActivity {
     static String TAG = "activity";
@@ -28,44 +25,14 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        
-        /*for (int  i =0; i< 10; i++) {
-            OutputStream os = null;
-            File propsFile = new File(Environment.getExternalStorageDirectory() + "/.statist", "shared.prefs");
-            if (!propsFile.exists()) {
-                try {
-                    propsFile.createNewFile();
-                } catch (IOException e) {
-                    Log.e(TAG, "file not created");
-                }
-            }
-            int id = android.os.Process.myPid();
-            Properties properties = new Properties();
-            try {
-                os = new FileOutputStream(propsFile);
-                properties.setProperty("act", String.valueOf(i));
-                Log.e(TAG, "writed " + i + " FOR PID =  " + id);
-                properties.store(os, null);
-            } catch (IOException e) {
-                Log.e(TAG, "io exception storing prefs", e);
-
-            } finally {
-                if (os != null) {
-                    try {
-                        os.close();
-                    } catch (IOException e) {
-                        Log.e(TAG, "io exception closing output", e);
-                    }
-                }
-            }
-        }*/
 
         Intent s1Intent = new Intent(this, Service1.class);
         startService(s1Intent);
-        
-        /*Intent s2Intent = new Intent(this, Service2.class);
+
+        Intent s2Intent = new Intent(this, Service2.class);
         startService(s2Intent);
         
+        /*
         Intent s3Intent = new Intent(this, Service3.class);
         startService(s3Intent);
         
@@ -76,71 +43,81 @@ public class MainActivity extends ActionBarActivity {
         startService(s5Intent);
         
         Intent s6Intent = new Intent(this, Service6.class);
-        startService(s6Intent);*/
+        startService(s6Intent);
+        */
 
-        File dir = new File(
-                Environment.getExternalStorageDirectory(), ".statist");
-        if (!dir.exists()) {
-            dir.mkdir();
+        File dir = new File(Environment.getExternalStorageDirectory(), ".statist");
+        if (!dir.mkdir() && !dir.isDirectory()) {
+            Log.e(TAG, "Error while creating directory: file with same name already exists.");
+            //todo something meaningful here
         }
         File propsFile = new File(dir, "shared.prefs");
         if (!propsFile.exists()) {
             try {
                 propsFile.createNewFile();
             } catch (IOException e) {
-                Log.e(TAG, "file not created");
+                Log.e(TAG, "File not created");
+                //todo something meaningful here
             }
         }
 
-
-        /*
-        FileOutputStream os;
-        Properties properties = new Properties();
-        try {
-            os = new FileOutputStream(propsFile);
-            FileLock lock = ((FileOutputStream) os).getChannel().lock();
-            FileInputStream in = null;
+        //Write properties
+        for (int i = 0; i < 10; i++) {
+            FileOutputStream os;
+            Properties properties = new Properties();
             try {
-                in = new FileInputStream(propsFile);
-                properties.load(in);
-            } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } finally {
-                lock.release();
-                if (os != null) {
+                os = new FileOutputStream(propsFile);
+                FileChannel channel = os.getChannel();
+                Log.e(TAG, "starting lock write");
+                FileLock lock = channel.lock();
+                Log.e(TAG, "finished lock write");
+                try {
+                    properties.setProperty("contention", String.valueOf(i));
+                    Log.e(TAG, "write property contention: " + i);
+                    properties.store(os, null);
+                } catch (IOException e) {
+                    Log.e(TAG, "io exception storing prefs", e);
+                } finally {
+                    Log.e(TAG, "starting unlock write");
+                    lock.release();
+                    Log.e(TAG, "finished unlock write");
                     try {
                         os.close();
                     } catch (IOException e) {
                         Log.e(TAG, "io exception closing output", e);
                     }
                 }
-                in.close();
-
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            Log.e(TAG, "PROP = " + properties.getProperty("ser1"));
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         }
 
-        */
 
-
+        //Read properties
         Properties properties = new Properties();
         try {
             FileChannel channel = new RandomAccessFile(propsFile, "rw").getChannel();
+            Log.e(TAG, "starting lock read");
             FileLock lock = channel.lock();
-
-            InputStream in = Channels.newInputStream(channel);
-            properties.load(in);
-
-            lock.release();
-            channel.close();
-
-            Log.e(TAG, "PROP = " + properties.getProperty("ser1"));
+            Log.e(TAG, "finished lock read");
+            InputStream in = null;
+            try {
+                in = Channels.newInputStream(channel);
+                properties.load(in);
+                Log.e(TAG, "PROP = " + properties.getProperty("contention"));
+            } catch (Exception e) {
+                Log.e(TAG, "exception while reading properties", e);
+            } finally {
+                Log.e(TAG, "starting unlock read");
+                lock.release();
+                Log.e(TAG, "finished unlock read");
+                if (in != null) {
+                    in.close();
+                }
+                channel.close();
+            }
         } catch (Exception e) {
-            Log.e(TAG, "Error while get PROP: " + e.toString());
+            Log.e(TAG, "exception while acquiring file read lock", e);
         }
     }
 
