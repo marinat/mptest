@@ -7,11 +7,9 @@ import android.os.IBinder;
 import android.util.Log;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.RandomAccessFile;
-import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.util.Properties;
@@ -34,6 +32,17 @@ public class Service1 extends Service {
             Log.e(TAG, "Error while creating directory: file with same name already exists.");
             //todo something meaningful here
         }
+
+        File lockerFile = new File(dir, ".locker");
+        if (!lockerFile.exists()) {
+            try {
+                lockerFile.createNewFile();
+            } catch (IOException e) {
+                Log.e(TAG, "Locker not created");
+                //todo something meaningful here
+            }
+        }
+
         File propsFile = new File(dir, "shared.prefs");
         if (!propsFile.exists()) {
             try {
@@ -46,29 +55,37 @@ public class Service1 extends Service {
 
         //Write properties
         for (int i = 0; i < 10; i++) {
-            FileOutputStream os;
             Properties properties = new Properties();
+            FileOutputStream propsOutputStream;
+            FileOutputStream lockerOutputStream;
             try {
-                os = new FileOutputStream(propsFile);
-                FileChannel channel = os.getChannel();
+                lockerOutputStream = new FileOutputStream(lockerFile);
+                FileChannel channel = lockerOutputStream.getChannel();
                 Log.e(TAG, "starting lock write");
                 FileLock lock = channel.lock();
                 Log.e(TAG, "finished lock write");
+
+                propsOutputStream = new FileOutputStream(propsFile);
                 try {
                     properties.setProperty("contention", String.valueOf(i));
                     Log.e(TAG, "write property contention: " + i);
-                    properties.store(os, null);
-                    os.flush();
+                    properties.store(propsOutputStream, null);
                 } catch (IOException e) {
-                    Log.e(TAG, "io exception storing prefs", e);
+                    Log.e(TAG, "io exception storing properties", e);
                 } finally {
+                    try {
+                        propsOutputStream.close();
+                    } catch (IOException e) {
+                        Log.e(TAG, "io exception closing output", e);
+                    }
                     Log.e(TAG, "starting unlock write");
                     lock.release();
                     Log.e(TAG, "finished unlock write");
                     try {
-                        os.close();
+                        lockerOutputStream.close();
+                        channel.close();
                     } catch (IOException e) {
-                        Log.e(TAG, "io exception closing output", e);
+                        Log.e(TAG, "io exception closing lock output", e);
                     }
                 }
             } catch (IOException e) {
@@ -79,26 +96,36 @@ public class Service1 extends Service {
 
         //Read properties
         Properties properties = new Properties();
+        FileInputStream propsInputStream;
+        FileOutputStream lockerOutputStream;
         try {
-            FileChannel channel = new RandomAccessFile(propsFile, "rw").getChannel();
+            lockerOutputStream = new FileOutputStream(lockerFile);
+            FileChannel channel = lockerOutputStream.getChannel();
             Log.e(TAG, "starting lock read");
             FileLock lock = channel.lock();
             Log.e(TAG, "finished lock read");
-            InputStream in = null;
+
+            propsInputStream = new FileInputStream(propsFile);
             try {
-                in = Channels.newInputStream(channel);
-                properties.load(in);
+                properties.load(propsInputStream);
                 Log.e(TAG, "PROP = " + properties.getProperty("contention"));
-            } catch (Exception e) {
+            } catch (IOException e) {
                 Log.e(TAG, "exception while reading properties", e);
             } finally {
+                try {
+                    propsInputStream.close();
+                } catch (IOException e) {
+                    Log.e(TAG, "io exception closing input", e);
+                }
                 Log.e(TAG, "starting unlock read");
                 lock.release();
                 Log.e(TAG, "finished unlock read");
-                if (in != null) {
-                    in.close();
+                try {
+                    lockerOutputStream.close();
+                    channel.close();
+                } catch (IOException e) {
+                    Log.e(TAG, "io exception closing lock output", e);
                 }
-                channel.close();
             }
         } catch (Exception e) {
             Log.e(TAG, "exception while acquiring file read lock", e);
